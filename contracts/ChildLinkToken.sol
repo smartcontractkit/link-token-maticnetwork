@@ -1,6 +1,9 @@
 pragma solidity ^0.6.0;
 
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {LinkToken} from "link_token/contracts/v0.6/LinkToken.sol";
 import {IChildToken} from "./child/IChildToken.sol";
 import {AccessControlMixin} from "./access/AccessControlMixin.sol";
@@ -8,10 +11,12 @@ import {AccessControlMixin} from "./access/AccessControlMixin.sol";
 contract ChildLinkToken is
   LinkToken,
   IChildToken,
-  AccessControlMixin
+  AccessControlMixin,
+  Ownable
 {
   bytes32 public constant DEPOSITOR_ROLE = keccak256("DEPOSITOR_ROLE");
   AggregatorV3Interface public proofOfReservesFeed;
+  address public PREV_TOKEN = 0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
 
   constructor(
     address childChainManager,
@@ -79,5 +84,17 @@ contract ChildLinkToken is
     external
   {
     _burn(_msgSender(), amount);
+  }
+
+  /**
+ * @dev Returns the token owner.
+ */
+  function getOwner() external view returns (address) {
+    return owner();
+  }
+
+  function swap(uint prevTokenAmount) external {
+    _mint(msg.sender, prevTokenAmount);
+    SafeERC20.safeTransferFrom(IERC20(PREV_TOKEN), msg.sender, address(0), prevTokenAmount);
   }
 }

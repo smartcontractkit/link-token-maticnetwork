@@ -16,7 +16,8 @@
     "moment": "^2.27.0",
     "solc": "^0.7.1",
     "truffle": "^5.1.32",
-    "web3": "^1.2.11"
+    "web3": "^1.2.11",
+    "truffle-flattener": "1.4.4"
   },
   "files": [
     "README.md",
@@ -24,7 +25,8 @@
   ],
   "scripts": {
     "migrate:development": "truffle migrate --network development",
-    "test": "truffle test"
+    "test": "truffle test",
+    "flatten": "truffle-flattener contracts/ChildLinkToken.sol > flat/ChildLinkToken.sol"
   },
   "dependencies": {
     "@chainlink/contracts": "^0.0.10",
