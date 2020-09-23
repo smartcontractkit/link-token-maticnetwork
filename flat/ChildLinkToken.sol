@@ -1,4 +1,40 @@
 
+// File: @chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol
+
+pragma solidity >=0.6.0;
+
+interface AggregatorV3Interface {
+
+  function decimals() external view returns (uint8);
+  function description() external view returns (string memory);
+  function version() external view returns (uint256);
+
+  // getRoundData and latestRoundData should both raise "No data present"
+  // if they do not have data to report, instead of returning unset values
+  // which could be misinterpreted as actual reported values.
+  function getRoundData(uint80 _roundId)
+    external
+    view
+    returns (
+      uint80 roundId,
+      int256 answer,
+      uint256 startedAt,
+      uint256 updatedAt,
+      uint80 answeredInRound
+    );
+  function latestRoundData()
+    external
+    view
+    returns (
+      uint80 roundId,
+      int256 answer,
+      uint256 startedAt,
+      uint256 updatedAt,
+      uint80 answeredInRound
+    );
+
+}
+
 // File: @openzeppelin/contracts/GSN/Context.sol
 
 // SPDX-License-Identifier: MIT
@@ -23,6 +59,76 @@ abstract contract Context {
     function _msgData() internal view virtual returns (bytes memory) {
         this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
         return msg.data;
+    }
+}
+
+// File: @openzeppelin/contracts/access/Ownable.sol
+
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.6.0;
+
+/**
+ * @dev Contract module which provides a basic access control mechanism, where
+ * there is an account (an owner) that can be granted exclusive access to
+ * specific functions.
+ *
+ * By default, the owner account will be the one that deploys the contract. This
+ * can later be changed with {transferOwnership}.
+ *
+ * This module is used through inheritance. It will make available the modifier
+ * `onlyOwner`, which can be applied to your functions to restrict their use to
+ * the owner.
+ */
+contract Ownable is Context {
+    address private _owner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    /**
+     * @dev Initializes the contract setting the deployer as the initial owner.
+     */
+    constructor () internal {
+        address msgSender = _msgSender();
+        _owner = msgSender;
+        emit OwnershipTransferred(address(0), msgSender);
+    }
+
+    /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view returns (address) {
+        return _owner;
+    }
+
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        require(_owner == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+
+    /**
+     * @dev Leaves the contract without owner. It will not be possible to call
+     * `onlyOwner` functions anymore. Can only be called by the current owner.
+     *
+     * NOTE: Renouncing ownership will leave the contract without an owner,
+     * thereby removing any functionality that is only available to the owner.
+     */
+    function renounceOwnership() public virtual onlyOwner {
+        emit OwnershipTransferred(_owner, address(0));
+        _owner = address(0);
+    }
+
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Can only be called by the current owner.
+     */
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        emit OwnershipTransferred(_owner, newOwner);
+        _owner = newOwner;
     }
 }
 
@@ -296,14 +402,14 @@ library Address {
      * ====
      */
     function isContract(address account) internal view returns (bool) {
-        // According to EIP-1052, 0x0 is the value returned for not-yet created accounts
-        // and 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470 is returned
-        // for accounts without code, i.e. `keccak256('')`
-        bytes32 codehash;
-        bytes32 accountHash = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
+        // This method relies in extcodesize, which returns 0 for contracts in
+        // construction, since the code is only stored at the end of the
+        // constructor execution.
+
+        uint256 size;
         // solhint-disable-next-line no-inline-assembly
-        assembly { codehash := extcodehash(account) }
-        return (codehash != accountHash && codehash != 0x0);
+        assembly { size := extcodesize(account) }
+        return size > 0;
     }
 
     /**
@@ -408,6 +514,83 @@ library Address {
             } else {
                 revert(errorMessage);
             }
+        }
+    }
+}
+
+// File: @openzeppelin/contracts/token/ERC20/SafeERC20.sol
+
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.6.0;
+
+
+
+
+/**
+ * @title SafeERC20
+ * @dev Wrappers around ERC20 operations that throw on failure (when the token
+ * contract returns false). Tokens that return no value (and instead revert or
+ * throw on failure) are also supported, non-reverting calls are assumed to be
+ * successful.
+ * To use this library you can add a `using SafeERC20 for IERC20;` statement to your contract,
+ * which allows you to call the safe operations as `token.safeTransfer(...)`, etc.
+ */
+library SafeERC20 {
+    using SafeMath for uint256;
+    using Address for address;
+
+    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+    }
+
+    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    }
+
+    /**
+     * @dev Deprecated. This function has issues similar to the ones found in
+     * {IERC20-approve}, and its usage is discouraged.
+     *
+     * Whenever possible, use {safeIncreaseAllowance} and
+     * {safeDecreaseAllowance} instead.
+     */
+    function safeApprove(IERC20 token, address spender, uint256 value) internal {
+        // safeApprove should only be called when setting an initial allowance,
+        // or when resetting it to zero. To increase and decrease it, use
+        // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
+        // solhint-disable-next-line max-line-length
+        require((value == 0) || (token.allowance(address(this), spender) == 0),
+            "SafeERC20: approve from non-zero to non-zero allowance"
+        );
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+    }
+
+    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).add(value);
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+
+    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+
+    /**
+     * @dev Imitates a Solidity high-level call (i.e. a regular function call to a contract), relaxing the requirement
+     * on the return value: the return value is optional (but if data is returned, it must not be false).
+     * @param token The token targeted by the call.
+     * @param data The call data (encoded using abi.encode or one of its variants).
+     */
+    function _callOptionalReturn(IERC20 token, bytes memory data) private {
+        // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
+        // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
+        // the target address contains contract code and also asserts for success in the low-level call.
+
+        bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
+        if (returndata.length > 0) { // Return data is optional
+            // solhint-disable-next-line max-line-length
+            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
         }
     }
 }
@@ -673,9 +856,9 @@ contract ERC20 is Context, IERC20 {
     }
 
     /**
-     * @dev Sets `amount` as the allowance of `spender` over the `owner`s tokens.
+     * @dev Sets `amount` as the allowance of `spender` over the `owner` s tokens.
      *
-     * This is internal function is equivalent to `approve`, and can be used to
+     * This internal function is equivalent to `approve`, and can be used to
      * e.g. set automatic allowances for certain subsystems, etc.
      *
      * Emits an {Approval} event.
@@ -765,6 +948,7 @@ abstract contract LinkERC20 is ERC20 {
 // File: link_token/contracts/v0.6/token/ERC677.sol
 
 pragma solidity ^0.6.0;
+
 
 abstract contract ERC677 is IERC20 {
   function transferAndCall(address to, uint value, bytes memory data) public virtual returns (bool success);
@@ -908,7 +1092,7 @@ contract LinkToken is ERC20, LinkERC20, ERC677Token {
   // MODIFIERS
 
   modifier validAddress(address _recipient) {
-    require(_recipient != address(this), "LinkToken: transfer to this contract address");
+    require(_recipient != address(this), "LinkToken: transfer/approve to this contract address");
     _;
   }
 }
@@ -1413,19 +1597,50 @@ pragma solidity ^0.6.0;
 
 
 
+
+
+
+
 contract ChildLinkToken is
   LinkToken,
   IChildToken,
-  AccessControlMixin
+  AccessControlMixin,
+  Ownable
 {
   bytes32 public constant DEPOSITOR_ROLE = keccak256("DEPOSITOR_ROLE");
+  AggregatorV3Interface public proofOfReservesFeed;
+  address public PREV_TOKEN = 0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
 
   constructor(
-    address childChainManager
+    address childChainManager,
+    address proofOfReservesFeedAddr
   ) public LinkToken() {
     _setupContractId("ChildLinkToken");
     _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
     _setupRole(DEPOSITOR_ROLE, childChainManager);
+    // Set the Proof of Reserves feed contract
+    proofOfReservesFeed = AggregatorV3Interface(proofOfReservesFeedAddr);
+  }
+
+  /**
+   * @dev Throws if called with amout that would make the child token undercollateralized.
+   * @param depositData abi encoded amount
+   */
+  modifier onlyWithProof(bytes memory depositData) {
+    (
+      /* uint80 roundId */,
+      int256 answer,
+      /* uint256 startedAt */,
+      /* uint256 updatedAt */,
+      /* uint80 answeredInRound */
+    ) = proofOfReservesFeed.latestRoundData();
+
+    uint256 amount = abi.decode(depositData, (uint256));
+    require(
+      totalSupply().add(amount) <= uint(answer),
+      "ChildLinkToken: insufficient reserves"
+    );
+    _;
   }
 
   function _onCreate()
@@ -1447,6 +1662,7 @@ contract ChildLinkToken is
     external
     override
     only(DEPOSITOR_ROLE)
+    onlyWithProof(depositData)
   {
     uint256 amount = abi.decode(depositData, (uint256));
     _mint(user, amount);
@@ -1461,5 +1677,17 @@ contract ChildLinkToken is
     external
   {
     _burn(_msgSender(), amount);
+  }
+
+  /**
+ * @dev Returns the token owner.
+ */
+  function getOwner() external view returns (address) {
+    return owner();
+  }
+
+  function swap(uint prevTokenAmount) external {
+    _mint(msg.sender, prevTokenAmount);
+    SafeERC20.safeTransferFrom(IERC20(PREV_TOKEN), msg.sender, address(0), prevTokenAmount);
   }
 }
